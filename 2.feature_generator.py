@@ -38,7 +38,7 @@ def collection_rank(ip,port,db,collection):
 		collection_cited = {}
 
 		if (iterator%10000 == 0):
-			print collection + " cited_count uploading : " + str(iterator) + "/" + str(1900000) +" takes: " + str((time.time() - past_time)) + " seconds"
+			print collection + " cited_count uploading : " + str(iterator) + "/" + str(collection_client.count()) +" takes: " + str((time.time() - past_time)) + " seconds"
 			past_time = time.time()
 		iterator += 1
 		
@@ -54,11 +54,12 @@ def collection_rank(ip,port,db,collection):
 				for i in range(0,66):
 					collection_cited_count[collection_id["_id"]][i] += item_cited_count[i]
 
-		#print collection_cited_count[collection_id["_id"]]
-		#input()
-		collection_client.update({"_id":collection_id},{"$set":{"cited_count":collection_cited_count[collection_id["_id"]],"last_modified":time.time()}})
+		collection_client.update({"_id":collection_id["_id"]},{"$set":{"cited_count":collection_cited_count[collection_id["_id"]],"last_modified":time.time()}})
 
 	#db에서 이름 
+
+
+"""	
 def author_rank_H_index(ip,port,db):
 	author_client = MongoClient(ip, port)[db]["author"]
 	item_client = MongoClient(ip, port)[db]["paper"]
@@ -71,7 +72,7 @@ def author_rank_H_index(ip,port,db):
 		collection_cited = {}
 
 		if (iterator%10000 == 0 ):
-			print collection + " cited_count uploading : " + str(iterator) + "/" + str(1900000) +" takes: " + str((time.time() - past_time)) + " seconds"
+			print collection + " cited_count uploading : " + str(iterator) + "/" + str(collection_client.count()) +" takes: " + str((time.time() - past_time)) + " seconds"
 			past_time = time.time()
 		iterator += 1
 
@@ -88,13 +89,7 @@ def author_rank_H_index(ip,port,db):
 						collection_cited[str(year)] = 0
 					collection_cited[str(year)] += int(cited_count[str(year)])
 
-def test(ip,port,db):
-	#시간넣기 
-	collection_client = MongoClient('lamda.ml', 27017)[db]["test"]
-	#collection_client.save({"_id":"1", "time":time.time(),"temp":"2312312"})
-	collection_client.update({"_id":"1"},{"$set":{"cited_count":"111112","last_modified":time.time()}})	
-
-
+"""
 
 #최근 업데이트된 정보를 볼 수 있도록 시간을 추가하였다. 
 #이거 다 되면 author한번 더 돌릴 수 있도록 한다. 
@@ -103,13 +98,21 @@ ip = "127.0.0.1"
 port= 27017
 db = "DBLP_Citation_network_V8"
 #각 collection들의 연도별 cited count를 만들어 저장 -> ranking용 
-collection_rank(ip,port,db,"author")
-#collection_rank(ip,port,db,"venue")
+#collection_rank(ip,port,db,"author")
+collection_rank(ip,port,db,"venue")
 
 
-author_rank_H_index(ip,port,db)
+#author_rank_H_index(ip,port,db)
 
 
 
 #test(ip,port,db)
 #3. venue rank 구하기
+
+
+
+def test(ip,port,db):
+	#시간넣기 
+	collection_client = MongoClient('lamda.ml', 27017)[db]["test"]
+	#collection_client.save({"_id":"1", "time":time.time(),"temp":"2312312"})
+	collection_client.update({"_id":"1"},{"$set":{"cited_count":"111112","last_modified":time.time()}})	
