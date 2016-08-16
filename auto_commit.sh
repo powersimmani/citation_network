@@ -7,6 +7,5 @@ do
     echo $count
     count=$(($count+1))
 	git commit -a -m "auto commit `date +%F-%T`"
-	echo "please push the project"
-    sleep 3
+    sleep 4000
 done
