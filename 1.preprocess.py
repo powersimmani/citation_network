@@ -223,7 +223,7 @@ def citation_count_per_year(ip,port,db):
 
 
 		iterator += 1
-
+  
 	iterator = 0
 	
 	for item in cited_count:

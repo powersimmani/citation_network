@@ -53,7 +53,7 @@ def collection_cited_count(ip,port,db,collection):
 				#print collection+"_cited " + str(collection_cited)
 				#input()
 		collection_client.update({"_id":collection_id},{"$set":{"cited_count":collection_cited,"last_modified":time.time()}})
-
+  
 def author_rank_H_index(ip,port,db):
 	author_client = MongoClient('lamda.ml', 27017)[db]["author"]
 	item_client = MongoClient('lamda.ml', 27017)[db]["paper"]
