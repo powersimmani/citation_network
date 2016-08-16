@@ -1,7 +1,8 @@
 #!/bin/bash
 count=0
+git commit -a -m "auto commit `date +%F-%T`"
+#git push
 
-git commit -a -m "autoupdate `date +%F-%T`"
 #while [ $count -lt 1000000 ]
 #do
 #    echo $count
