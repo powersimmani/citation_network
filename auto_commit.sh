@@ -1,7 +1,7 @@
 #!/bin/bash
 count=0
 git commit -a -m "auto commit `date +%F-%T`"
-git push
+echo "please push the project"
 
 #while [ $count -lt 1000000 ]
 #do
