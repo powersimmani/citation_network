@@ -30,11 +30,12 @@ def collection_cited_count_maker(ip,port,db,collection):
 	#그 출판기록에서 각 아이디들의 연도별 인용수 기록을 읽어서 리스트로 만들어둔다. item_id
 	#랭킹을 만들어 추가한다. 
 
-	collection_cited_count = {}
 
 	past_time = time.time()
 	iterator = 0
 	for collection_id in collection_client.find():
+		collection_cited_count = [0]*66
+
 		published = collection_id["published"]
 		collection_cited = {}
 
@@ -42,9 +43,7 @@ def collection_cited_count_maker(ip,port,db,collection):
 			print collection + " cited_count uploading : " + str(iterator) + "/" + str(collection_client.count()) +" takes: " + str((time.time() - past_time)) + " seconds"
 			past_time = time.time()
 		iterator += 1
-		
-		if collection_id["_id"] not in collection_cited_count:
-			collection_cited_count[collection_id["_id"]] = [0]*66
+
 
 		for year in published:
 			item_list= published[year]
@@ -53,9 +52,18 @@ def collection_cited_count_maker(ip,port,db,collection):
 				#최종인용수를 만들고 그 사이의 랭킹을 구한다. 
 				item_cited_count = item_client.find_one({"_id":str(item_id)})["cited_count_sum"]
 				for i in range(0,66):
-					collection_cited_count[collection_id["_id"]][i] += item_cited_count[i]
+					collection_cited_count[i] += item_cited_count[i]
+				#print item_cited_count
 
-		collection_client.update({"_id":collection_id["_id"]},{"$set":{"cited_count":collection_cited_count[collection_id["_id"]],"last_modified":time.time()}})
+		"""
+		#for test
+		print "-"*50
+		print collection_id["_id"]
+		print collection_cited_count
+		print "="*50
+		print input()
+		"""
+		collection_client.update({"_id":collection_id["_id"]},{"$set":{"cited_count":collection_cited_count,"last_modified":time.time()}})
 
 def collection_rank_maker(ip,port,db,collection):
 	collection_client = MongoClient(ip, port)[db][collection]
@@ -142,7 +150,7 @@ db = "DBLP_Citation_network_V8"
 #collection_cited_count_maker(ip,port,db,"author")
 #collection_cited_count_maker(ip,port,db,"venue")
 
-collection_rank_maker(ip,port,db,"author")
+#collection_rank_maker(ip,port,db,"author")
 #collection_rank_maker(ip,port,db,"venue")
 
 

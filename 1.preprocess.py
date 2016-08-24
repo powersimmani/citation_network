@@ -1,6 +1,7 @@
 #-*-encoding: utf-8 -*-
 # ipython notebook --ip 0.0.0.0 --port 9999
 #import networkx as nx
+#sudo mongod --dbpath /path/
 
 #db.author.find().limit(-1).skip(2).next()
 #limit와 skip만 있으면 나도 이제 원하는 문서를 랜덤하게 찾을 수 있다. 
@@ -249,4 +250,12 @@ def citation_count_per_year(ip,port,db):
 #processed_data("../1.raw_data/acm.txt","lamda.ml",27017,"DBLP_Citation_network_V8")
 #author_collection("lamda.ml",27017,"DBLP_Citation_network_V8")
 #venue_collection("lamda.ml",27017,"DBLP_Citation_network_V8")
-citation_count_per_year("lamda.ml",27017,"DBLP_Citation_network_V8")
+#citation_count_per_year("lamda.ml",27017,"DBLP_Citation_network_V8")
+
+
+
+processed_data("../1.raw_data/acm.txt","lamda.ml",27017,"DBLP_Citation_network_V8")
+#author_collection("lamda.ml",27017,"DBLP_Citation_network_V8")
+#venue_collection("lamda.ml",27017,"DBLP_Citation_network_V8")
+#citation_count_per_year("lamda.ml",27017,"DBLP_Citation_network_V8")
+
