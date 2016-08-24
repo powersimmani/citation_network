@@ -147,7 +147,7 @@ ip = "127.0.0.1"
 port= 27017
 db = "DBLP_Citation_network_V8"
 #각 collection들의 연도별 cited count를 만들어 저장 -> ranking용 
-#collection_cited_count_maker(ip,port,db,"author")
+collection_cited_count_maker(ip,port,db,"author")
 #collection_cited_count_maker(ip,port,db,"venue")
 
 #collection_rank_maker(ip,port,db,"author")
@@ -163,5 +163,6 @@ def test(ip,port,db):
 	#시간넣기 
 	collection_client = MongoClient('lamda.ml', 27017)[db]["test"]
 	#collection_client.save({"_id":"1", "time":time.time(),"temp":"2312312"})
-	collection_client.update({"_id":"1"},{"$set":{"cited_count":"111112","last_modified":time.time()}})	
+
+
 	collection_rank = {}
