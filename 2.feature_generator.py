@@ -151,7 +151,7 @@ def author_h_index_maker(ip,port,db,collection):
 				print "sort[i]	: " + str(sort[i])
 				if (i > sort[i]):
 					author_h_index[collection_id["_id"]][year]= i
-					continue
+					break
 			print "="*100
 			print author_h_index[collection_id["_id"]]
 			input()
