@@ -162,6 +162,12 @@ def author_h_index_maker(ip,port,db,collection):
 		collection_client.update({"_id":author_id},{"$set":{"h_index":author_h_index[author_id],"last_modified":time.time()}})
 
 
+
+
+
+
+
+
 def test(ip,port,db):
 	#시간넣기 
 	collection_client = MongoClient(ip, port)[db]["test"]
