@@ -176,30 +176,43 @@ def network_uploader(ip,port,db,collection):
 	# 이를 이용헤 네트워크를 만들어서 올려둔다? 아니면 해당연도에 속한 자료만 
 	#그냥 db에서 연도가 n년 이하인 경우만 끌어오면 되는거 아닌가?
 
+
+
+
+
 	G = nx.DiGraph()
+	for end_year in range(1951,1958): #--------------------------------------------------------------------------
+		for collection_id in collection_client.find({"year":{"$gte":end_year-1,"$lt":end_year}},{"year":1, "cite":1}):#--------------
 
-	for collection_id in collection_client.find({"year":{"$gte":1991,"$lt":1992}},{"year":1, "cite":1}):
-		#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
-		#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
-		#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
-		source = collection_id["_id"]
+			#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
+			#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
+			#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
+			source = collection_id["_id"]
 
+			#이미 있는 노드의 경우? ->알아서 갱신해줌 따라서 연도정보가 없는 target을 알아내기 위해 target의 데이터에 -1을 추가하였다. 
+			G.add_node(source,{"year":collection_id["year"]})
 
-		#이미 있는 노드의 경우? ->알아서 갱신해줌 따라서 연도정보가 없는 target을 알아내기 위해 target의 데이터에 -1을 추가하였다. 
-		G.add_node(source,{"year":collection_id["year"]})
-
-		for target in collection_id["cite"]:
-			G.add_node(target,{"year":-1})
-			G.add_edge(source,target,{"year":collection_id["year"]})
+			for target in collection_id["cite"]:
+				G.add_node(target,{"year":-1})
+				G.add_edge(source,target,{"year":collection_id["year"]})
 		pprint(G.edges(data=True))
 		pprint(G.nodes(data=True))
-		input()
 
+
+
+			#iter에 뭐가 들어있는지 보자꾸나 
+		cnt = 0
+		
+		for data in G.nodes(data=True):
+			if data[1]['year'] == -1:
+				cnt +=1
+		
+		print str(end_year) + "'s -1 rate: " + str(cnt) + " / " + str(len(G.nodes())) + "\t\t" + str(float(cnt) / max(float(len(G.nodes())),1.0)*100) + "%" 
+		
+
+	#-1의 개수와 전체 개수가 뭐뭐인지 확인해보자 
 
 	#for collection_id in collection_client.find({"year":[1950,1980]}):
-
-
-
 	pass
 
 
