@@ -118,7 +118,7 @@ def author_h_index_maker(ip,port,db,collection):
 	item_client = MongoClient(ip, port)[db]["paper"]
 
 	author_h_index = {}
-	cited_counts_years = [[]]*66
+	cited_counts_years = [[] for i in range(0,66)]
 	past_time = time.time()
 	iterator = 0
 
@@ -127,6 +127,8 @@ def author_h_index_maker(ip,port,db,collection):
 			print collection + " cited_count downloading : " + str(iterator) + "/" + str(collection_client.count()) +" takes: " + str((time.time() - past_time)) + " seconds"
 			past_time = time.time()
 
+		if (collection_id["_id"] not in author_h_index):
+			author_h_index[collection_id["_id"]] = [0]*66
 		published = collection_id["published"]
 
 		for year in published:
@@ -134,12 +136,25 @@ def author_h_index_maker(ip,port,db,collection):
 			
 			for item_id in item_list:
 				#최종인용수를 만들고 그 사이의 랭킹을 구한다. 
-				item_cited_count = item_client.find_one({"_id":str(item_id)})["cited_count_sum"]
-				for i in range(0,66):
+				item = item_client.find_one({"_id":str(item_id)})
+				item_cited_count = item["cited_count_sum"]
+				start_year = int(year) -1950
+				for i in range(start_year,66):
 					cited_counts_years[i].append(item_cited_count[i])
 
-				print cited_counts_years	
-				input()
+
+		for year in range(50,66):
+			sort = sorted(map(int,cited_counts_years[year]),reverse=True)
+			for i in range(0,len(sort)):
+				print sort
+				print "i 	: " + str(i)
+				print "sort[i]	: " + str(sort[i])
+				if (i > sort[i]):
+					author_h_index[collection_id["_id"]][year]= i
+					continue
+			print "="*100
+			print author_h_index[collection_id["_id"]]
+			input()
 
 
 def test(ip,port,db):
