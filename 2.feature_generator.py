@@ -30,7 +30,6 @@ def collection_cited_count_maker(ip,port,db,collection):
 	#그 출판기록에서 각 아이디들의 연도별 인용수 기록을 읽어서 리스트로 만들어둔다. item_id
 	#랭킹을 만들어 추가한다. 
 
-
 	past_time = time.time()
 	iterator = 0
 	for collection_id in collection_client.find():
