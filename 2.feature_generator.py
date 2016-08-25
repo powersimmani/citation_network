@@ -118,7 +118,7 @@ def author_h_index_maker(ip,port,db,collection):
 	item_client = MongoClient(ip, port)[db]["paper"]
 
 	author_h_index = {}
-	cited_counts_years = [[] for i in range(0,66)]
+	
 	past_time = time.time()
 	iterator = 0
 
@@ -126,6 +126,9 @@ def author_h_index_maker(ip,port,db,collection):
 		if (iterator%10000 == 0):
 			print collection + " cited_count downloading : " + str(iterator) + "/" + str(collection_client.count()) +" takes: " + str((time.time() - past_time)) + " seconds"
 			past_time = time.time()
+
+
+		cited_counts_years = [[] for i in range(0,66)]
 
 		if (collection_id["_id"] not in author_h_index):
 			author_h_index[collection_id["_id"]] = [0]*66
@@ -143,18 +146,20 @@ def author_h_index_maker(ip,port,db,collection):
 					cited_counts_years[i].append(item_cited_count[i])
 
 
-		for year in range(50,66):
+		for year in range(0,66):
 			sort = sorted(map(int,cited_counts_years[year]),reverse=True)
-			for i in range(0,len(sort)):
-				print sort
-				print "i 	: " + str(i)
-				print "sort[i]	: " + str(sort[i])
-				if (i > sort[i]):
-					author_h_index[collection_id["_id"]][year]= i
-					break
-			print "="*100
-			print author_h_index[collection_id["_id"]]
-			input()
+			if (len(sort) >1):
+				for i in range(0,len(sort)):
+					if (i > sort[i]):
+						author_h_index[collection_id["_id"]][year]= i
+						break
+			elif len(sort)==1:
+				if sort[0] > 0:
+					author_h_index[collection_id["_id"]][year]= 1
+		iterator += 1
+
+	for author_id in author_h_index:
+		collection_client.update({"_id":author_id},{"$set":{"h_index":author_h_index[author_id],"last_modified":time.time()}})
 
 
 def test(ip,port,db):
