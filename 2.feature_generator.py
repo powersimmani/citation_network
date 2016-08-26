@@ -202,6 +202,10 @@ def network_uploader(ip,port,db,collection,cen_type):
 	SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
 	for ed_tuple in SG.edges():
 		weight = 1.0
+		print ed_tuple
+		print ed_tuple[0]
+		print ed_tuple[1]
+		print SG[ed_tuple[0]]
 		weight = max(SG[ed_tuple[0]]['cited_count_sum'][year-1950],1.0)
 		SG[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
 
