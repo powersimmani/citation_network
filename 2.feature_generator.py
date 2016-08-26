@@ -170,46 +170,54 @@ def author_h_index_maker(ip,port,db,collection):
 #여러가지를 고려해서 다시 만들어보자 
 #일단 연도별로 나누어서 올리는 작업을 해야 하나?
 
-def network_uploader(ip,port,db,collection):
+def network_uploader(ip,port,db,collection,cen_type):
 	collection_client = MongoClient(ip, port)[db][collection]
 	# paper에서 network부분만 떼어내어서 폴더를 만들고 만들어낸다. 
 	# 이를 이용헤 네트워크를 만들어서 올려둔다? 아니면 해당연도에 속한 자료만 
 	#그냥 db에서 연도가 n년 이하인 경우만 끌어오면 되는거 아닌가?
 
 	G = nx.DiGraph()
-	for end_year in range(1951,1958): #--------------------------------------------------------------------------
-		for collection_id in collection_client.find({"year":{"$gte":end_year-1,"$lt":end_year}},{"year":1, "cite":1}):#--------------
+	
+	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":2016}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
+		#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
+		#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
+		#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
+		source = collection_id["_id"]
 
-			#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
-			#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
-			#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
-			source = collection_id["_id"]
+		#이미 있는 노드의 경우? ->알아서 갱신해줌 따라서 연도정보가 없는 target을 알아내기 위해 target의 데이터에 -1을 추가하였다. 
+		G.add_node(source,{"year":collection_id["year"],
+							cen_type:[0.0]*66,
+							"cited_count_sum" : collection_id["cited_count_sum"]
+							})
 
-			#이미 있는 노드의 경우? ->알아서 갱신해줌 따라서 연도정보가 없는 target을 알아내기 위해 target의 데이터에 -1을 추가하였다. 
-			G.add_node(source,{"year":collection_id["year"],
-								#centrality를 사용하면 좋을 듯 리스트로 저장하는거지 그럼 시간이 너무 오래 걸릴까?
-								#멀티프로세싱을 시도해야 하나? 아니면 나눠야 하나 centrality별로?
-								#워커를 시도하는건 조금 문제가 있는데 다 추합해서 저장해야 하니까 어차피 ...
-								# 한번에 하나씩만 구하는 예전방식을 써야 하나?
-								
-								})
-
-			for target in collection_id["cite"]:
+		for target in collection_id["cite"]:
+			if target not in G:
 				G.add_node(target,{"year":-1})
-				G.add_edge(source,target,{"year":collection_id["year"]})
-		#pprint(G.edges(data=True))
-		#pprint(G.nodes(data=True))
+			G.add_edge(source,target,{"year":collection_id["year"]})
+
+
+			
+		#subgraph만들기
+		year = 1953
+		SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
+		for ed_tuple in SG.edges():
+			weight = 1.0
+			weight = max(SG[ed_tuple[0]]['cited_count_sum'][year-1950],1.0)
+			SG[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
+
+			print SG.edges()
+			input()
+		#그래프 연산 및 저장 
+
 
 		#데이터 항목에 계산결과를 집어넣을 수 있다면?
 		#그냥 돌리는거랑 엣지에 웨이트를 주어서 돌리는거랑 어떤 느낌인지 한번 비교해보고 싶다. 
-
-
-		#I need some  experiment for  duplication  such as  adding year -1 and  it mayt be  rewirited  -1 because  it may cited after it  published
-# i need to chek it out
-
+		#subgraph쓰면 그닥 그럴 일이 없는건 아닌거지 왜냐면 아니지... 인용수까지 데이터가 있다면 
+		#subgraph만들고 weight만 지정해주면 되는거니가 새로 처음부터 다운받아서 만드는것보다 좋지ㅏ
 
 		cen_list = nx.in_degree_centrality(G)
-		nx.set_node_attributes(G, 'in_degree', cen_list)
+		nx.set_node_attributes(G, cen_type, cen_list)
+		#
 		pprint(G.nodes(data=True))
 
 		input()
@@ -242,50 +250,16 @@ def network_uploader(ip,port,db,collection):
 				cnt +=1
 		
 		print str(end_year) + "'s -1 rate: " + str(cnt) + " / " + str(len(G.nodes())) + "\t\t" + str(float(cnt) / max(float(len(G.nodes())),1.0)*100) + "%" 
-		
-
-	#-1의 개수와 전체 개수가 뭐뭐인지 확인해보자 
-
-	#for collection_id in collection_client.find({"year":[1950,1980]}):
-	pass
-
-
-
-
+	
 
 
 
 def test(ip,port,db):
 	#시간넣기 
-	collection_client = MongoClient(ip, port)[db]["test"]
-	#collection_client.save({"_id":"1", "time":time.time(),"temp":"2312312"})
-
-
-	collection_rank = {}
-
-	collection_cited_count = [[8],[9],[1],[1],[1],[7],[7],[8],[9]]
-	#일반 rank와 percentile rank를 같이 구한다. 
-	for year in range(0,1):
-
-		past_time = time.time()		
-
-		cited_count_for_rank = [-item[year] for item in collection_cited_count]
-		cited_count_for_percentile = [item[year] for item in collection_cited_count]
-		print cited_count_for_rank
-		print cited_count_for_percentile
-
-		cited_rank = rankdata(cited_count_for_rank)
-		#순위와 백분위를 구한다. 
-
-		print cited_rank
-
-
-
-
-	for item_id in id_iter_map:
-		index = id_iter_map[item_id]
-		collection_client.update({"_id":item_id},{"$set":{"rank":collection_rank[item_id],"rank_percent":collection_rank_percentile[item_id],"last_modified":time.time()}})
-
+	#필터로 노드를 걸러내고(연도별로)
+	#네트워크를 만들었을 떄 당연히 인디그리에서 연도가 아닌것들은 사리지겠지.
+	#필터가 되는지 그래서 인디그리가 사라지는지 
+	pass
 
 
 
@@ -304,8 +278,8 @@ db = "DBLP_Citation_network_V8"
 
 #author_h_index_maker(ip,port,db,"author")
 
-
-network_uploader(ip,port,db,"paper")
+centrality = "in_deg"
+network_uploader(ip,port,db,"paper",centrality)
 
 #test(ip,port,db)
 #3. venue rank 구하기
