@@ -178,7 +178,7 @@ def network_uploader(ip,port,db,collection,cen_type):
 
 	G = nx.DiGraph()
 	
-	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":2016}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
+	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":1960}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
 		#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
 		#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
 		#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
@@ -197,16 +197,16 @@ def network_uploader(ip,port,db,collection,cen_type):
 
 
 			
-		#subgraph만들기
-		year = 1953
-		SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
-		for ed_tuple in SG.edges():
-			weight = 1.0
-			weight = max(SG[ed_tuple[0]]['cited_count_sum'][year-1950],1.0)
-			SG[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
+	#subgraph만들기
+	year = 1953
+	SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
+	for ed_tuple in SG.edges():
+		weight = 1.0
+		weight = max(SG[ed_tuple[0]]['cited_count_sum'][year-1950],1.0)
+		SG[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
 
-			print SG.edges()
-			input()
+		print SG.edges()
+		input()
 		#그래프 연산 및 저장 
 
 
@@ -214,14 +214,13 @@ def network_uploader(ip,port,db,collection,cen_type):
 		#그냥 돌리는거랑 엣지에 웨이트를 주어서 돌리는거랑 어떤 느낌인지 한번 비교해보고 싶다. 
 		#subgraph쓰면 그닥 그럴 일이 없는건 아닌거지 왜냐면 아니지... 인용수까지 데이터가 있다면 
 		#subgraph만들고 weight만 지정해주면 되는거니가 새로 처음부터 다운받아서 만드는것보다 좋지ㅏ
-
+		"""
 		cen_list = nx.in_degree_centrality(G)
 		nx.set_node_attributes(G, cen_type, cen_list)
-		#
 		pprint(G.nodes(data=True))
 
 		input()
-		"""
+		
 		Cen_in = {}
 		Net = nx.DiGraph(edge_list)
 		try:
@@ -243,15 +242,6 @@ def network_uploader(ip,port,db,collection,cen_type):
 
 			#iter에 뭐가 들어있는지 보자꾸나 
 		"""
-		cnt = 0
-		
-		for data in G.nodes(data=True):
-			if data[1]['year'] == -1:
-				cnt +=1
-		
-		print str(end_year) + "'s -1 rate: " + str(cnt) + " / " + str(len(G.nodes())) + "\t\t" + str(float(cnt) / max(float(len(G.nodes())),1.0)*100) + "%" 
-	
-
 
 
 def test(ip,port,db):
