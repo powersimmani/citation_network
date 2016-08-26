@@ -203,6 +203,11 @@ def network_uploader(ip,port,db,collection):
 		#데이터 항목에 계산결과를 집어넣을 수 있다면?
 		#그냥 돌리는거랑 엣지에 웨이트를 주어서 돌리는거랑 어떤 느낌인지 한번 비교해보고 싶다. 
 
+
+		#I need some  experiment for  duplication  such as  adding year -1 and  it mayt be  rewirited  -1 because  it may cited after it  published
+# i need to chek it out
+
+
 		cen_list = nx.in_degree_centrality(G)
 		nx.set_node_attributes(G, 'in_degree', cen_list)
 		pprint(G.nodes(data=True))
