@@ -176,10 +176,6 @@ def network_uploader(ip,port,db,collection):
 	# 이를 이용헤 네트워크를 만들어서 올려둔다? 아니면 해당연도에 속한 자료만 
 	#그냥 db에서 연도가 n년 이하인 경우만 끌어오면 되는거 아닌가?
 
-
-
-
-
 	G = nx.DiGraph()
 	for end_year in range(1951,1958): #--------------------------------------------------------------------------
 		for collection_id in collection_client.find({"year":{"$gte":end_year-1,"$lt":end_year}},{"year":1, "cite":1}):#--------------
@@ -190,17 +186,50 @@ def network_uploader(ip,port,db,collection):
 			source = collection_id["_id"]
 
 			#이미 있는 노드의 경우? ->알아서 갱신해줌 따라서 연도정보가 없는 target을 알아내기 위해 target의 데이터에 -1을 추가하였다. 
-			G.add_node(source,{"year":collection_id["year"]})
+			G.add_node(source,{"year":collection_id["year"],
+								#centrality를 사용하면 좋을 듯 리스트로 저장하는거지 그럼 시간이 너무 오래 걸릴까?
+								#멀티프로세싱을 시도해야 하나? 아니면 나눠야 하나 centrality별로?
+								#워커를 시도하는건 조금 문제가 있는데 다 추합해서 저장해야 하니까 어차피 ...
+								# 한번에 하나씩만 구하는 예전방식을 써야 하나?
+								
+								})
 
 			for target in collection_id["cite"]:
 				G.add_node(target,{"year":-1})
 				G.add_edge(source,target,{"year":collection_id["year"]})
-		pprint(G.edges(data=True))
+		#pprint(G.edges(data=True))
+		#pprint(G.nodes(data=True))
+
+		#데이터 항목에 계산결과를 집어넣을 수 있다면?
+		#그냥 돌리는거랑 엣지에 웨이트를 주어서 돌리는거랑 어떤 느낌인지 한번 비교해보고 싶다. 
+
+		cen_list = nx.in_degree_centrality(G)
+		nx.set_node_attributes(G, 'in_degree', cen_list)
 		pprint(G.nodes(data=True))
 
-
+		input()
+		"""
+		Cen_in = {}
+		Net = nx.DiGraph(edge_list)
+		try:
+			if (centrality_name == "in_degree"):
+				Cen_in = nx.in_degree_centrality(Net)
+			elif (centrality_name == "degree"):
+				Cen_in = nx.degree_centrality(Net)
+			elif (centrality_name == "eigenvector"):
+				Cen_in = nx.eigenvector_centrality(Net)
+			elif (centrality_name == "katz"):
+				Cen_in = nx.katz_centrality(Net)
+			elif (centrality_name == "pagerank"):
+				Cen_in = nx.pagerank(Net)
+			elif (centrality_name == "communicability"):
+				Net = nx.Graph(edge_list)
+				Cen_in = nx.communicability_centrality(Net)
+			elif (centrality_name == "load"):
+				Cen_in = nx.load_centrality(Net)
 
 			#iter에 뭐가 들어있는지 보자꾸나 
+		"""
 		cnt = 0
 		
 		for data in G.nodes(data=True):
