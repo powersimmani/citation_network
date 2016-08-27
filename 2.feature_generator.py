@@ -197,12 +197,12 @@ def make_network_feature_array_on_db(ip,port,db,collection_load,collection_save)
 			con_save.update({"_id":document['_id']},{"$set":{cen_type:[0.0]*66}})
 	"""
 
-def cal_network_value_multiprocessor(ip,port,db,collection,cen_type, G,year_array):
-	print "worker on"
+def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, G,year_array):
 	for year in year_array:
+		print "worker on "+str(cen_type) + " "+str(year)
+
 		SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
 
-		print "-"*60
 		for ed_tuple in SG.edges():
 			#여기서 weight를 설정할 수 있다. 
 			weight = 1.0
@@ -212,21 +212,17 @@ def cal_network_value_multiprocessor(ip,port,db,collection,cen_type, G,year_arra
 		printer = [edge for edge in SG.edges(data=True) if int(edge[2]['weight']) >1 ]
 
 		cen_list = "error"
-		try:
-			if (cen_type == "in_degree"):
-				cen_list = nx.in_degree_centrality(SG)
-			elif (cen_type == "degree"):
-				cen_list = nx.degree_centrality(SG)
-			elif (cen_type == "eigenvector"):
-				cen_list = nx.eigenvector_centrality(SG)
-			elif (cen_type == "pagerank"):
-				cen_list = nx.pagerank(SG)
-		except:
-			print "error in calculate centrality"
+		if (cen_type == "in_degree"):
+			cen_list = nx.in_degree_centrality(SG)
 
+		elif (cen_type == "degree"):
+			cen_list = nx.degree_centrality(SG)
+		elif (cen_type == "eigenvector"):
+			cen_list = nx.eigenvector_centrality(SG)
+		elif (cen_type == "pagerank"):
+			cen_list = nx.pagerank(SG)
 
-		collection_client = MongoClient(ip, port)[db][collection]
-
+		collection_client = MongoClient(ip, port)[db][con_save]
 		for paper_id in cen_list:
 			value = cen_list[paper_id]
 			if value == 0.0:
@@ -234,8 +230,8 @@ def cal_network_value_multiprocessor(ip,port,db,collection,cen_type, G,year_arra
 			collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
 
 
-def network_uploader(ip,port,db,collection,cen_type):
-	collection_client = MongoClient(ip, port)[db][collection]
+def network_uploader(ip,port,db,con_load,con_save,cen_type):
+	collection_client = MongoClient(ip, port)[db][con_load]
 	# paper에서 network부분만 떼어내어서 폴더를 만들고 만들어낸다. 
 	# 이를 이용헤 네트워크를 만들어서 올려둔다? 아니면 해당연도에 속한 자료만 
 	#그냥 db에서 연도가 n년 이하인 경우만 끌어오면 되는거 아닌가?
@@ -266,13 +262,12 @@ def network_uploader(ip,port,db,collection,cen_type):
 					[1955,1961,1967,1973,1979,1985,1991,1997,2003,2009,2014],
 					[1956,1962,1968,1974,1980,1986,1992,1998,2004,2010,2015]]
 
-	year_divide = [[1958]]
+	#year_divide = [[1980]]
 	if __name__=='__main__':
 
 		jobs = []
-   
 	 	for year_array in year_divide:
-	 		p = Process(target=cal_network_value_multiprocessor, args = (ip,port,db,collection,cen_type, G,year_array))
+	 		p = Process(target=cal_network_value_multiprocessor, args = (ip,port,db,con_save,cen_type, G,year_array))
 			jobs.append(p)
 
 		for process in jobs:
@@ -320,9 +315,10 @@ db = "DBLP_Citation_network_V8"
 #"eigenvector"
 #"pagerank"
 
-centrality = "in_degree"
-make_network_feature_array_on_db(ip,port,db,"paper","network")
-#network_uploader(ip,port,db,"network",centrality)
+centrality_list = ["in_degree","degree","eigenvector","pagerank"]
+#make_network_feature_array_on_db(ip,port,db,"paper","network")
+for centrality in centrality_list:
+	network_uploader(ip,port,db,"paper","network",centrality)
 
 #test(ip,port,db)
 #3. venue rank 구하기
