@@ -172,6 +172,20 @@ def author_h_index_maker(ip,port,db,collection):
 #여러가지를 고려해서 다시 만들어보자 
 #일단 연도별로 나누어서 올리는 작업을 해야 하나?
 
+def make_network_feature_array_on_db(ip,port,db,collection):
+	#멀티 프로세싱을 위해 사전에 db에 저장공간을 마련하고 
+	#네트워크 값들을 계산할 때 마다 0이 아닌 경우를 업데이트 해준다. 
+	#이 경우 db의 부담이 줄어들고 멀티프로세싱 리턴값을 받지 않아도 되기 떄문에 편리하다. 
+	#꽤 오래 걸린다. 
+	collection_client = MongoClient(ip, port)[db][collection]
+
+	cen_name_list = ["in_degree","degree","eigenvector","pagerank"]
+		#collection_client.update({},{"$set":{cen_type:[0.0]*66}},False,True)
+	
+	for document in collection_client.find():
+		for cen_type in cen_name_list:
+			collection_client.update({"_id":document['_id']},{"$set":{cen_type:[0.0]*66}})
+		
 
 def cal_network_value_multiprocessor(ip,port,db,collection,cen_type, G,year_array):
 	print "worker on"
@@ -187,19 +201,27 @@ def cal_network_value_multiprocessor(ip,port,db,collection,cen_type, G,year_arra
 		
 		printer = [edge for edge in SG.edges(data=True) if int(edge[2]['weight']) >1 ]
 
+		cen_list = "error"
 		try:
 			if (cen_type == "in_degree"):
-				Cen_in = nx.in_degree_centrality(SG)
+				cen_list = nx.in_degree_centrality(SG)
 			elif (cen_type == "degree"):
-				Cen_in = nx.degree_centrality(SG)
+				cen_list = nx.degree_centrality(SG)
 			elif (cen_type == "eigenvector"):
-				Cen_in = nx.eigenvector_centrality(SG)
+				cen_list = nx.eigenvector_centrality(SG)
 			elif (cen_type == "pagerank"):
-				Cen_in = nx.pagerank(SG)
+				cen_list = nx.pagerank(SG)
+		except:
+			print "error in calculate centrality"
 
 
-		pprint(printer)
+		collection_client = MongoClient(ip, port)[db][collection]
 
+		for paper_id in cen_list:
+			value = cen_list[paper_id]
+			if value == 0.0:
+				continue
+			collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
 
 
 def network_uploader(ip,port,db,collection,cen_type):
@@ -253,13 +275,6 @@ def network_uploader(ip,port,db,collection,cen_type):
 	#db.paper.update({"_id":"5390881220f70186a0d7ec89"},{$set:{"cited_count_sum.0":0}})
 
 
-
-
-
-	year = 1960
-
-	
-	
 
 	#그래프 연산 및 저장 
 
@@ -330,7 +345,13 @@ db = "DBLP_Citation_network_V8"
 
 #author_h_index_maker(ip,port,db,"author")
 
-centrality = "in_deg"
+#"in_degree"
+#"degree"
+#"eigenvector"
+#"pagerank"
+
+centrality = "in_degree"
+#make_network_feature_array_on_db(ip,port,db,"paper")
 network_uploader(ip,port,db,"paper",centrality)
 
 #test(ip,port,db)
