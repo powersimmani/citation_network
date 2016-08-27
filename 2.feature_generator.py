@@ -271,47 +271,7 @@ def network_uploader(ip,port,db,collection,cen_type):
 		for process in jobs:
 			process.join()
 
-	#subgraph만들기
-	#db.paper.update({"_id":"5390881220f70186a0d7ec89"},{$set:{"cited_count_sum.0":0}})
 
-
-
-	#그래프 연산 및 저장 
-
-
-	#데이터 항목에 계산결과를 집어넣을 수 있다면?
-	#그냥 돌리는거랑 엣지에 웨이트를 주어서 돌리는거랑 어떤 느낌인지 한번 비교해보고 싶다. 
-	#subgraph쓰면 그닥 그럴 일이 없는건 아닌거지 왜냐면 아니지... 인용수까지 데이터가 있다면 
-	#subgraph만들고 weight만 지정해주면 되는거니가 새로 처음부터 다운받아서 만드는것보다 좋지ㅏ
-
-	"""
-	cen_list = nx.in_degree_centrality(G)
-	nx.set_node_attributes(G, cen_type, cen_list)
-	pprint(G.nodes(data=True))
-
-	input()
-	
-	Cen_in = {}
-	Net = nx.DiGraph(edge_list)
-	try:
-		if (centrality_name == "in_degree"):
-			Cen_in = nx.in_degree_centrality(Net)
-		elif (centrality_name == "degree"):
-			Cen_in = nx.degree_centrality(Net)
-		elif (centrality_name == "eigenvector"):
-			Cen_in = nx.eigenvector_centrality(Net)
-		elif (centrality_name == "katz"):
-			Cen_in = nx.katz_centrality(Net)
-		elif (centrality_name == "pagerank"):
-			Cen_in = nx.pagerank(Net)
-		elif (centrality_name == "communicability"):
-			Net = nx.Graph(edge_list)
-			Cen_in = nx.communicability_centrality(Net)
-		elif (centrality_name == "load"):
-			Cen_in = nx.load_centrality(Net)
-
-		#iter에 뭐가 들어있는지 보자꾸나 
-	"""
 
 
 def test(ip,port,db):
