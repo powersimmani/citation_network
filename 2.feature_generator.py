@@ -17,6 +17,8 @@ import time
 from pprint import pprint
 from pymongo import MongoClient
 
+from multiprocessing import Process, Queue
+import os 
 #1. h-index구하기
 
 #2. author rank 구하기
@@ -170,6 +172,36 @@ def author_h_index_maker(ip,port,db,collection):
 #여러가지를 고려해서 다시 만들어보자 
 #일단 연도별로 나누어서 올리는 작업을 해야 하나?
 
+
+def cal_network_value_multiprocessor(ip,port,db,collection,cen_type, G,year_array):
+	print "worker on"
+	for year in year_array:
+		SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
+
+		print "-"*60
+		for ed_tuple in SG.edges():
+			#여기서 weight를 설정할 수 있다. 
+			weight = 1.0
+			weight = max(SG.node[ed_tuple[0]]['cited_count_sum'][year-1950],0.5)
+			SG.edge[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
+		
+		printer = [edge for edge in SG.edges(data=True) if int(edge[2]['weight']) >1 ]
+
+		try:
+			if (cen_type == "in_degree"):
+				Cen_in = nx.in_degree_centrality(SG)
+			elif (cen_type == "degree"):
+				Cen_in = nx.degree_centrality(SG)
+			elif (cen_type == "eigenvector"):
+				Cen_in = nx.eigenvector_centrality(SG)
+			elif (cen_type == "pagerank"):
+				Cen_in = nx.pagerank(SG)
+
+
+		pprint(printer)
+
+
+
 def network_uploader(ip,port,db,collection,cen_type):
 	collection_client = MongoClient(ip, port)[db][collection]
 	# paper에서 network부분만 떼어내어서 폴더를 만들고 만들어낸다. 
@@ -178,7 +210,7 @@ def network_uploader(ip,port,db,collection,cen_type):
 
 	G = nx.DiGraph()
 	
-	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":1960}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
+	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":1980}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
 		#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
 		#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
 		#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
@@ -195,20 +227,40 @@ def network_uploader(ip,port,db,collection,cen_type):
 				G.add_node(target,{"year":-1})
 			G.add_edge(source,target,{"year":collection_id["year"]})
 
+	year_divide = [[1950,1951,1957,1963,1969,1975,1981,1987,1993,1999,2005],
+					[1952,1958,1964,1970,1976,1982,1988,1994,2000,2006,2011],
+					[1953,1959,1965,1971,1977,1983,1989,1995,2001,2007,2012],
+					[1954,1960,1966,1972,1978,1990,1984,1996,2002,2008,2013],
+					[1955,1961,1967,1973,1979,1985,1991,1997,2003,2009,2014],
+					[1956,1962,1968,1974,1980,1986,1992,1998,2004,2010,2015]]
 
-			
+	year_divide = [[1958]]
+	if __name__=='__main__':
+
+		jobs = []
+   
+	 	for year_array in year_divide:
+	 		p = Process(target=cal_network_value_multiprocessor, args = (ip,port,db,collection,cen_type, G,year_array))
+			jobs.append(p)
+
+		for process in jobs:
+			process.start()
+
+		for process in jobs:
+			process.join()
+
 	#subgraph만들기
-	year = 1960
-	SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
+	#db.paper.update({"_id":"5390881220f70186a0d7ec89"},{$set:{"cited_count_sum.0":0}})
 
-	print "-"*60
-	for ed_tuple in SG.edges():
-		weight = 1.0
-		weight = max(SG.node[ed_tuple[0]]['cited_count_sum'][year-1950],0.5)
-		SG.edge[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
+
+
+
+
+	year = 1960
+
 	
-	printer = [edge for edge in SG.edges(data=True) if int(edge[2]['weight']) >1 ]
-	pprint(printer)
+	
+
 	#그래프 연산 및 저장 
 
 
@@ -216,6 +268,7 @@ def network_uploader(ip,port,db,collection,cen_type):
 	#그냥 돌리는거랑 엣지에 웨이트를 주어서 돌리는거랑 어떤 느낌인지 한번 비교해보고 싶다. 
 	#subgraph쓰면 그닥 그럴 일이 없는건 아닌거지 왜냐면 아니지... 인용수까지 데이터가 있다면 
 	#subgraph만들고 weight만 지정해주면 되는거니가 새로 처음부터 다운받아서 만드는것보다 좋지ㅏ
+
 	"""
 	cen_list = nx.in_degree_centrality(G)
 	nx.set_node_attributes(G, cen_type, cen_list)
@@ -247,10 +300,17 @@ def network_uploader(ip,port,db,collection,cen_type):
 
 
 def test(ip,port,db):
+	import sys
 	#시간넣기 
 	#필터로 노드를 걸러내고(연도별로)
 	#네트워크를 만들었을 떄 당연히 인디그리에서 연도가 아닌것들은 사리지겠지.
 	#필터가 되는지 그래서 인디그리가 사라지는지 
+	enter = 0
+	for i in range(1950,2016):
+		sys.stdout.write(str(i) + "\t")
+		if (i%6 == 0):
+			sys.stdout.write("\n")
+
 	pass
 
 
