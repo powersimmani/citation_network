@@ -240,6 +240,8 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 	# paper에서 network부분만 떼어내어서 폴더를 만들고 만들어낸다. 
 	# 이를 이용헤 네트워크를 만들어서 올려둔다? 아니면 해당연도에 속한 자료만 
 	#그냥 db에서 연도가 n년 이하인 경우만 끌어오면 되는거 아닌가?
+	#설마 1980으로 해놔서 문제가 있을수도 있나? 아닌가?...일단 해보고 결정하자 
+	#network이 80년대꺼니까 그럴 수 있다....없는 데이터가 더 많을 수 있지...
 
 	G = nx.DiGraph()
 	
@@ -282,12 +284,50 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 			process.join()
 
 
-def network_feature_extractor(ip,port,db,con,cen_type):
-	for collection_id in collection_client.find():#--------------
-		pass
+def network_feature_extractor(ip,port,db,con,cen_type_list):
+	collection_client = MongoClient(ip, port)[db][con]
+	#일단 feature저장하는 부분을 만들었는데 이거 나중에 한번 더 돌려야 한다. 
+	#지금은 저장공간만 확보하다는 개념으로 돌리는거 
 
-	print "hey!!"
-	pass
+	
+	add_docu = {}
+	for document in collection_client.find():#--------------
+		add_docu[document["_id"]] = {}
+		for cen_type in cen_type_list:
+			document[cen_type]
+
+			add_docu[document["_id"]][cen_type +"max"] = [0.0]*66
+			add_docu[document["_id"]][cen_type +"sum"] = [0.0]*66
+			add_docu[document["_id"]][cen_type +"top"] = [0.0]*66
+			add_docu[document["_id"]][cen_type +"slope"] = [0.0]*66
+
+			for year in range(1950-1950,2016-1950):
+				#4대 요소 계산 
+				add_docu[document["_id"]][cen_type +"max"][year] = max(document[cen_type][:year+1])
+				add_docu[document["_id"]][cen_type +"sum"][year]  = sum(document[cen_type][:year+1])
+
+				cnt = 0
+				start = 0
+				for i in document[cen_type]:
+					if i != 0.0 and start == 0:
+						start = cnt
+					if max(document[cen_type][:year+1]) == i:
+						break
+					cnt += 1
+
+				add_docu[document["_id"]][cen_type +"top"][year]  = cnt-start
+
+				#여기를 좀 손많이 봐야할 듯 
+				val_slope = 0
+				for i in range(start+1, year):
+					val_slope = max(val_slope,document[cen_type][i]-document[cen_type][i-1])
+				add_docu[document["_id"]][cen_type +"slope"][year]  = val_slope
+
+				collection_client.update({"_id":document["_id"]},{"$set":{ "features" : add_docu[document["_id"]]}})
+
+
+	for paper_id in add_docu:
+		collection_client.update({"_id":paper_id},{"$set":{ "features" : add_docu[paper_id]}})
 
 def test(ip,port,db):
 	import sys
@@ -309,6 +349,7 @@ def test(ip,port,db):
 #이거 다 되면 author한번 더 돌릴 수 있도록 한다. 
 
 ip = "127.0.0.1"
+ip = "lamda.ml"
 port= 27017
 db = "DBLP_Citation_network_V8"
 #각 collection들의 연도별 cited count를 만들어 저장 -> ranking용 
@@ -327,11 +368,11 @@ db = "DBLP_Citation_network_V8"
 
 centrality_list = ["in_degree","degree","eigenvector","pagerank"]
 #make_network_feature_array_on_db(ip,port,db,"paper","network")
-for centrality in centrality_list:
-	network_uploader(ip,port,db,"paper","network",centrality)
+#for centrality in centrality_list:
+#	network_uploader(ip,port,db,"paper","network",centrality)
 
 
-#network_feature_extractor(ip,port,db,"network",centrality_list)
+network_feature_extractor(ip,port,db,"network",centrality_list)
 #test(ip,port,db)
 #3. venue rank 구하기
 
