@@ -4,6 +4,7 @@
 
 #db.author.find().limit(-1).skip(2).next()
 #limit와 skip만 있으면 나도 이제 원하는 문서를 랜덤하게 찾을 수 있다. 
+#db connection은 10분 지나면 꺼진다. 
 import numpy as np
 import re
 import os.path
@@ -198,6 +199,10 @@ def make_network_feature_array_on_db(ip,port,db,collection_load,collection_save)
 	"""
 
 def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, G,year_array):
+	#어느정도 비율로 이게 있는지 다 0 인 애들이 있는데 이것들은 어쩔건지
+	#똑같이 db에 들어간 애들중에 자료 없는 애들이 얼마나 있는지 대략적인 분포를 알고싶다. 
+	#이후에 centrality별로 feature들 계산해서 새로 올리는 그거 만들면 될 듯 어차피 db에 저장되니 확실히 편하긴 하다. 
+	#
 	for year in year_array:
 		print "worker on "+str(cen_type) + " "+str(year)
 
@@ -214,7 +219,6 @@ def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, G,year_array)
 		cen_list = "error"
 		if (cen_type == "in_degree"):
 			cen_list = nx.in_degree_centrality(SG)
-
 		elif (cen_type == "degree"):
 			cen_list = nx.degree_centrality(SG)
 		elif (cen_type == "eigenvector"):
@@ -228,7 +232,8 @@ def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, G,year_array)
 			if value == 0.0:
 				continue
 			collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
-
+			print paper_id
+			time.sleep(100)
 
 def network_uploader(ip,port,db,con_load,con_save,cen_type):
 	collection_client = MongoClient(ip, port)[db][con_load]
@@ -238,7 +243,7 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 
 	G = nx.DiGraph()
 	
-	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":1980}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
+	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":2016}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
 		#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
 		#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
 		#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
@@ -277,7 +282,12 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 			process.join()
 
 
+def network_feature_extractor(ip,port,db,con,cen_type):
+	for collection_id in collection_client.find():#--------------
+		pass
 
+	print "hey!!"
+	pass
 
 def test(ip,port,db):
 	import sys
@@ -320,6 +330,8 @@ centrality_list = ["in_degree","degree","eigenvector","pagerank"]
 for centrality in centrality_list:
 	network_uploader(ip,port,db,"paper","network",centrality)
 
+
+#network_feature_extractor(ip,port,db,"network",centrality_list)
 #test(ip,port,db)
 #3. venue rank 구하기
 
