@@ -39,6 +39,8 @@ def collection_cited_count_maker(ip,port,db,collection):
 
 	past_time = time.time()
 	iterator = 0
+
+
 	for collection_id in collection_client.find():
 		collection_cited_count = [0]*66
 
@@ -372,8 +374,8 @@ centrality_list = ["in_degree","degree","eigenvector","pagerank"]
 #	network_uploader(ip,port,db,"paper","network",centrality)
 
 
-network_feature_extractor(ip,port,db,"network",centrality_list)
-#test(ip,port,db)
+#network_feature_extractor(ip,port,db,"network",centrality_list)
+test(ip,port,db)
 #3. venue rank 구하기
 
 
