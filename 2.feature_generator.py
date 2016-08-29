@@ -200,42 +200,46 @@ def make_network_feature_array_on_db(ip,port,db,collection_load,collection_save)
 			con_save.update({"_id":document['_id']},{"$set":{cen_type:[0.0]*66}})
 	"""
 
-def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, G,year_array):
+def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, SG,year_array):
 	#어느정도 비율로 이게 있는지 다 0 인 애들이 있는데 이것들은 어쩔건지
 	#똑같이 db에 들어간 애들중에 자료 없는 애들이 얼마나 있는지 대략적인 분포를 알고싶다. 
 	#이후에 centrality별로 feature들 계산해서 새로 올리는 그거 만들면 될 듯 어차피 db에 저장되니 확실히 편하긴 하다. 
 	#
-	for year in year_array:
-		print "worker on "+str(cen_type) + " "+str(year)
+	print "worker on "+str(cen_type) + " "+str(year) + " start"
 
-		SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
 
-		for ed_tuple in SG.edges():
-			#여기서 weight를 설정할 수 있다. 
-			weight = 1.0
-			weight = max(SG.node[ed_tuple[0]]['cited_count_sum'][year-1950],0.5)
-			SG.edge[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
-		
-		printer = [edge for edge in SG.edges(data=True) if int(edge[2]['weight']) >1 ]
+	for ed_tuple in SG.edges():
+		#여기서 weight를 설정할 수 있다. 
+		weight = 1.0
+		weight = max(SG.node[ed_tuple[0]]['cited_count_sum'][year-1950],0.5)
+		SG.edge[ed_tuple[0]][ed_tuple[1]]['weight'] = weight
 
-		cen_list = "error"
-		if (cen_type == "in_degree"):
-			cen_list = nx.in_degree_centrality(SG)
-		elif (cen_type == "degree"):
-			cen_list = nx.degree_centrality(SG)
-		elif (cen_type == "eigenvector"):
-			cen_list = nx.eigenvector_centrality(SG)
-		elif (cen_type == "pagerank"):
-			cen_list = nx.pagerank(SG)
 
-		collection_client = MongoClient(ip, port)[db][con_save]
-		for paper_id in cen_list:
-			value = cen_list[paper_id]
-			if value == 0.0:
-				continue
-			collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
-			print paper_id
-			time.sleep(100)
+	print "worker on "+str(cen_type) + " "+str(year) + " centrality start"
+	cen_list = "error"
+	if (cen_type == "in_degree"):
+		cen_list = nx.in_degree_centrality(SG)
+	elif (cen_type == "degree"):
+		cen_list = nx.degree_centrality(SG)
+	elif (cen_type == "eigenvector"):
+		cen_list = nx.eigenvector_centrality(SG)
+	elif (cen_type == "pagerank"):
+		cen_list = nx.pagerank(SG)
+
+	collection_client = MongoClient(ip, port)[db][con_save]
+
+	bulkop = collection_client.initialize_ordered_bulk_op()
+
+	print "worker on "+str(cen_type) + " "+str(year) + " bulk and send start"
+
+	for paper_id in cen_list:
+		value = cen_list[paper_id]
+		if value == 0.0:
+			continue
+		retval = bulkop.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
+		#collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
+
+	retval = bulkop.execute()
 
 def network_uploader(ip,port,db,con_load,con_save,cen_type):
 	collection_client = MongoClient(ip, port)[db][con_load]
@@ -246,11 +250,20 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 	#network이 80년대꺼니까 그럴 수 있다....없는 데이터가 더 많을 수 있지...
 
 	G = nx.DiGraph()
+	cursor = collection_client.find({"year":{"$gte":1950,"$lt":2016}},{"year":1, "cite":1,"cited_count_sum":1})
+	count = cursor.count()
+	iterator = 0
+	past_time = time.time()
 	
-	for collection_id in collection_client.find({"year":{"$gte":1950,"$lt":2016}},{"year":1, "cite":1,"cited_count_sum":1}):#--------------
+	for collection_id in cursor:#--------------
 		#이걸로 한시름 놓았군 좋아좋아  네트워크 만들어서 들이대면 될 듯 
 		#그럼 만들어진 것들은 연도별로 모아서 다시 데이터별로 올리는 방법을 쓰자 
 		#매번 포문 돌리면서 계속해서 구하면 반복해서 뭐 더할 필요도 없고 연도마다 추가되는 네트워크에 대해서만 계산 때리면 되니 엄청 효율적이다.
+		if (iterator%100000 == 0):
+			print cen_type + " graph making : " + str(iterator) + "/" + str(count) +" takes: " + str((time.time() - past_time)) + " seconds"
+			past_time = time.time()
+		iterator += 1
+
 		source = collection_id["_id"]
 
 		#이미 있는 노드의 경우? ->알아서 갱신해줌 따라서 연도정보가 없는 target을 알아내기 위해 target의 데이터에 -1을 추가하였다. 
@@ -275,15 +288,18 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 	if __name__=='__main__':
 
 		jobs = []
-	 	for year_array in year_divide:
-	 		p = Process(target=cal_network_value_multiprocessor, args = (ip,port,db,con_save,cen_type, G,year_array))
-			jobs.append(p)
+		for year in range(1950,2016):
+			SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
 
-		for process in jobs:
-			process.start()
+		 	for year_array in year_divide:
+		 		p = Process(target=cal_network_value_multiprocessor, args = (ip,port,db,con_save,cen_type, SG,year))
+				jobs.append(p)
 
-		for process in jobs:
-			process.join()
+			for process in jobs:
+				process.start()
+
+			for process in jobs:
+				process.join()
 
 
 def network_feature_extractor(ip,port,db,con,cen_type_list):
@@ -291,22 +307,22 @@ def network_feature_extractor(ip,port,db,con,cen_type_list):
 	#일단 feature저장하는 부분을 만들었는데 이거 나중에 한번 더 돌려야 한다. 
 	#지금은 저장공간만 확보하다는 개념으로 돌리는거 
 
-	
-	add_docu = {}
+	bulkop = collection_client.initialize_ordered_bulk_op()
+
 	for document in collection_client.find():#--------------
-		add_docu[document["_id"]] = {}
+		add_docu = {}
 		for cen_type in cen_type_list:
 			document[cen_type]
 
-			add_docu[document["_id"]][cen_type +"max"] = [0.0]*66
-			add_docu[document["_id"]][cen_type +"sum"] = [0.0]*66
-			add_docu[document["_id"]][cen_type +"top"] = [0.0]*66
-			add_docu[document["_id"]][cen_type +"slope"] = [0.0]*66
+			add_docu[cen_type +"max"] = [0.0]*66
+			add_docu[cen_type +"sum"] = [0.0]*66
+			add_docu[cen_type +"top"] = [0.0]*66
+			add_docu[cen_type +"slope"] = [0.0]*66
 
 			for year in range(1950-1950,2016-1950):
 				#4대 요소 계산 
-				add_docu[document["_id"]][cen_type +"max"][year] = max(document[cen_type][:year+1])
-				add_docu[document["_id"]][cen_type +"sum"][year]  = sum(document[cen_type][:year+1])
+				add_docu[cen_type +"max"][year] = max(document[cen_type][:year+1])
+				add_docu[cen_type +"sum"][year]  = sum(document[cen_type][:year+1])
 
 				cnt = 0
 				start = 0
@@ -317,34 +333,21 @@ def network_feature_extractor(ip,port,db,con,cen_type_list):
 						break
 					cnt += 1
 
-				add_docu[document["_id"]][cen_type +"top"][year]  = cnt-start
+				add_docu[cen_type +"top"][year]  = cnt-start
 
 				#여기를 좀 손많이 봐야할 듯 
 				val_slope = 0
 				for i in range(start+1, year):
 					val_slope = max(val_slope,document[cen_type][i]-document[cen_type][i-1])
-				add_docu[document["_id"]][cen_type +"slope"][year]  = val_slope
+				add_docu[cen_type +"slope"][year]  = val_slope
 
-				collection_client.update({"_id":document["_id"]},{"$set":{ "features" : add_docu[document["_id"]]}})
+				retval = bulkop.update({"_id":document["_id"]},{"$set":{ "features" : add_docu}})
+				#이상하면 add_docu에 ["_id"]붙여서 전역으로 써야 한다. 
 
-
-	for paper_id in add_docu:
-		collection_client.update({"_id":paper_id},{"$set":{ "features" : add_docu[paper_id]}})
+	retval = bulkop.execute()
 
 def test(ip,port,db):
-	import sys
-	#시간넣기 
-	#필터로 노드를 걸러내고(연도별로)
-	#네트워크를 만들었을 떄 당연히 인디그리에서 연도가 아닌것들은 사리지겠지.
-	#필터가 되는지 그래서 인디그리가 사라지는지 
-	enter = 0
-	for i in range(1950,2016):
-		sys.stdout.write(str(i) + "\t")
-		if (i%6 == 0):
-			sys.stdout.write("\n")
-
 	pass
-
 
 
 #최근 업데이트된 정보를 볼 수 있도록 시간을 추가하였다. 
@@ -370,12 +373,12 @@ db = "DBLP_Citation_network_V8"
 
 centrality_list = ["in_degree","degree","eigenvector","pagerank"]
 #make_network_feature_array_on_db(ip,port,db,"paper","network")
-#for centrality in centrality_list:
-#	network_uploader(ip,port,db,"paper","network",centrality)
+for centrality in centrality_list:
+	network_uploader(ip,port,db,"paper","network",centrality)
 
 
 #network_feature_extractor(ip,port,db,"network",centrality_list)
-test(ip,port,db)
+#test(ip,port,db)
 #3. venue rank 구하기
 
 
