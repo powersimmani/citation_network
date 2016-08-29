@@ -237,20 +237,23 @@ def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, SG,year):
 		value = cen_list[paper_id]
 		if value == 0.0:
 			continue
-		#bulkop.find({"_id":paper_id}).update({"$set":{ cen_type + "." + str(year-1950) :value}})
-		collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
-
+		bulkop.find({"_id":paper_id}).update({"$set":{ cen_type + "." + str(year-1950) :value}})
+		#collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
+	bulkop.execute()
 
 def network_uploader(ip,port,db,con_load,con_save,cen_type):
+	print "connecting..."
 	collection_client = MongoClient(ip, port)[db][con_load]
+	print "connected!"
 	# paper에서 network부분만 떼어내어서 폴더를 만들고 만들어낸다. 
 	# 이를 이용헤 네트워크를 만들어서 올려둔다? 아니면 해당연도에 속한 자료만 
 	#그냥 db에서 연도가 n년 이하인 경우만 끌어오면 되는거 아닌가?
 	#설마 1980으로 해놔서 문제가 있을수도 있나? 아닌가?...일단 해보고 결정하자 
 	#network이 80년대꺼니까 그럴 수 있다....없는 데이터가 더 많을 수 있지...
 
+
 	G = nx.DiGraph()
-	cursor = collection_client.find({"year":{"$gte":1950,"$lt":2016}},{"year":1, "cite":1,"cited_count_sum":1})
+	cursor = collection_client.find({"year":{"$gte":1950,"$lt":1970}},{"year":1, "cite":1,"cited_count_sum":1})
 	count = cursor.count()
 	iterator = 0
 	past_time = time.time()
@@ -350,7 +353,20 @@ def network_feature_extractor(ip,port,db,con,cen_type_list):
 	retval = bulkop.execute()
 
 def test(ip,port,db):
-	pass
+	collection_client = MongoClient(ip, port)[db]["paper"]
+	bulkop = collection_client.initialize_ordered_bulk_op()
+	ret = bulkop.find({"year":{"$gte":1950,"$lt":1970}})
+	print ret
+	for document in ret:
+		print document
+	"""
+	for document in collection_client.find()[:10]:#--------------
+		bulkop.find({"_id":document["_id"]}).update({"$set":{ "test" : "1"}})
+		print document["_id"]
+	"""
+
+	bulkop.execute()
+
 
 
 #최근 업데이트된 정보를 볼 수 있도록 시간을 추가하였다. 
@@ -360,7 +376,7 @@ ip = "127.0.0.1"
 ip = "lamda.ml"
 port= 27017
 db = "DBLP_Citation_network_V8"
-#각 collection들의 연도별 cited count를 만들어 저장 -> ranking용 
+#각 collection들의 연도별 cited count를 만들어 저장 -> ranking용
 #collection_cited_count_maker(ip,port,db,"author")
 #collection_cited_count_maker(ip,port,db,"venue")
 
@@ -376,8 +392,11 @@ db = "DBLP_Citation_network_V8"
 
 centrality_list = ["in_degree","degree","eigenvector","pagerank"]
 #make_network_feature_array_on_db(ip,port,db,"paper","network")
+
 for centrality in centrality_list:
 	network_uploader(ip,port,db,"paper","network",centrality)
+
+
 
 
 #network_feature_extractor(ip,port,db,"network",centrality_list)
