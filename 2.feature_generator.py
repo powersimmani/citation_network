@@ -20,6 +20,7 @@ from pymongo import MongoClient
 
 from multiprocessing import Process, Queue
 import os 
+from pymongo.errors import BulkWriteError
 #1. h-index구하기
 
 #2. author rank 구하기
@@ -132,7 +133,7 @@ def author_h_index_maker(ip,port,db,collection):
 	iterator = 0
 
 	for collection_id in collection_client.find():
-		if (iterator%10000 == 0):
+		if (iterator%100000 == 0):
 			print collection + " cited_count downloading : " + str(iterator) + "/" + str(collection_client.count()) +" takes: " + str((time.time() - past_time)) + " seconds"
 			past_time = time.time()
 
@@ -200,7 +201,7 @@ def make_network_feature_array_on_db(ip,port,db,collection_load,collection_save)
 			con_save.update({"_id":document['_id']},{"$set":{cen_type:[0.0]*66}})
 	"""
 
-def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, SG,year_array):
+def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, SG,year):
 	#어느정도 비율로 이게 있는지 다 0 인 애들이 있는데 이것들은 어쩔건지
 	#똑같이 db에 들어간 애들중에 자료 없는 애들이 얼마나 있는지 대략적인 분포를 알고싶다. 
 	#이후에 centrality별로 feature들 계산해서 새로 올리는 그거 만들면 될 듯 어차피 db에 저장되니 확실히 편하긴 하다. 
@@ -231,15 +232,14 @@ def cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, SG,year_array
 	bulkop = collection_client.initialize_ordered_bulk_op()
 
 	print "worker on "+str(cen_type) + " "+str(year) + " bulk and send start"
-
+	
 	for paper_id in cen_list:
 		value = cen_list[paper_id]
 		if value == 0.0:
 			continue
-		retval = bulkop.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
-		#collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
+		#bulkop.find({"_id":paper_id}).update({"$set":{ cen_type + "." + str(year-1950) :value}})
+		collection_client.update({"_id":paper_id},{"$set":{ cen_type + "." + str(year-1950) :value}})
 
-	retval = bulkop.execute()
 
 def network_uploader(ip,port,db,con_load,con_save,cen_type):
 	collection_client = MongoClient(ip, port)[db][con_load]
@@ -288,9 +288,12 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 	if __name__=='__main__':
 
 		jobs = []
-		for year in range(1950,2016):
+		#multiprocessing을 쓰려 하였으나 메모리를 너무 많이 소모해 문제가 많아서 프로세스 2개만 쓴느걸로 해결...
+		#for year in range(2000,2016):
+		for year in range(1950,2000):
 			SG=G.subgraph( [n for n,attrdict in G.node.items() if attrdict['year'] <= year ] )
-
+			cal_network_value_multiprocessor(ip,port,db,con_save,cen_type, SG,year)
+			"""
 		 	for year_array in year_divide:
 		 		p = Process(target=cal_network_value_multiprocessor, args = (ip,port,db,con_save,cen_type, SG,year))
 				jobs.append(p)
@@ -300,7 +303,7 @@ def network_uploader(ip,port,db,con_load,con_save,cen_type):
 
 			for process in jobs:
 				process.join()
-
+			"""
 
 def network_feature_extractor(ip,port,db,con,cen_type_list):
 	collection_client = MongoClient(ip, port)[db][con]
